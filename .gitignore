@@ -1,0 +1,10 @@
+# Build Results
+bin/
+obj/
+
+# Web links
+*.url
+
+# Batch
+*.bat
+
