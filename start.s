@@ -29,7 +29,11 @@
 
 	start:
 		call init_vga
+		
 		mov $message, %esi
+		call print
+		
+		mov $message2, %esi
 		call print
 		
 		hang:
@@ -47,7 +51,7 @@
 	//Output :
 	//%esi will be changed
 	//%al will be 0
-	//%ah will be the vga color that's used (0xB0)
+	//%ah will be the vga color that's used (0x0B)
 	print:
 		mov $0x0B, %ah		//VGA Color
 		print_loop:
@@ -63,42 +67,70 @@
 	//Input :
 	//%al is the character to print
 	//%ah is the vga color to be used
-	//Output :
-	//%
 	put_char:
-		cmp %al, '\n
+		cmp $'\n, %al
 		je ptc_return 
 		ptc_char:
-		//If it is any character except carret return
-		call calculate_cur_ptr
-		mov %ax, (%edx)	//Write the char
+			//If it is any character except carret return
+			call calculate_cur_ptr
+			mov %ax, (%edx)	//Write the char
+			
+			push %eax
+			push %edx
+			
+			mov $cur_pos_x, %eax 
+			mov (%eax), %edx
+			inc %edx		//Increment the column
+			mov %edx, (%eax)
+			
+			pop %edx
+			pop %eax
+			
+			jmp ptc_next
+		ptc_return:
+			//If it is a \n
+			push %eax
+			push %edx
+			
+			mov $cur_pos_x, %eax 
+			mov $0, %edx
+			mov %edx, (%eax)	//Set the column to 0
+			
+			mov $cur_pos_y, %eax 
+			mov (%eax), %edx
+			inc %edx		//Increment the line
+			mov %edx, (%eax)
+			
+			pop %edx
+			pop %eax
+			//jmp ptc_next
+		ptc_next:
 		
 		push %eax
 		push %edx
 		
-		mov $cur_pos_x, %eax 
+		mov $cur_pos_x, %eax 	
 		mov (%eax), %edx
-		inc %edx		//Increment the column
-		mov %edx, (%eax)
+		cmp $VGA_WIDTH, %edx
+		jne ptc_skip_x_reset
+			mov $0, %edx
+			mov %edx, (%eax)	//Set the x cursor pos to 0 if it's at the end of the line
+		ptc_skip_x_reset:
 		
+		call calculate_cur_ptr
+		
+		cmp $VGA_BUF_END, %edx
+		jne ptc_skip_xy_reset	//If the pointer reaches the end of the vga buffer
+			mov $cur_pos_x, %eax
+			mov $0, %edx
+			mov %edx, (%eax)	//Set the x pos to 0
+			mov $cur_pos_y, %eax
+			mov $0, %edx
+			mov %edx, (%eax)	//Set the y pos to 0
+		ptc_skip_xy_reset:
+			
 		pop %edx
 		pop %eax
-		
-		jmp ptc_next
-		ptc_return:
-		//If it is a \n
-		mov $cur_pos_x, %eax 
-		mov $0, %edx
-		mov %edx, (%eax)	//Set the column to 0
-		
-		mov $cur_pos_y, %eax 
-		mov (%eax), %edx
-		inc %edx		//Increment the line
-		mov %edx, (%eax)
-		//jmp ptc_next
-		ptc_next:
-		
-		
 
 		ret
 	
@@ -142,8 +174,10 @@
 			
 .section .rodata
 	message:
-        .ascii  "Hello, world\n How are you all, pals?"
-		
+        .string  "Hello, world\n How are you all, pals?\n"
+	message2:
+		.string "Im a looooooooooooooooooooooooooooong message.\na\nb\nc\nd\ne\n-\n-\n-\n-\n-\n-\n-\n-\n-\n-\n-\n-\n-\n-\n-\n-"
+	//Note : .ascii doesn't add a null terminator whereas .string does
 	
 		
 .section .data
